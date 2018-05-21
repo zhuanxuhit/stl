@@ -11,17 +11,17 @@
 
 namespace muduo {
     namespace net {
-        class PollPoller : Poller{
+        class PollPoller : public Poller{
         public:
-            PollPoller(EventLoop *loop);
+            explicit PollPoller(EventLoop *loop);
 
-            virtual ~PollPoller();
+            ~PollPoller() override;
 
-            virtual Timestamp poll(int timeouMs, ChannelList *activeChannels);
+            Timestamp poll(int timeouMs, ChannelList *activeChannels) override;
 
-            virtual void updateChannel(Channel *channel);
+            void updateChannel(Channel *channel) override;
 
-            virtual void removeChannel(Channel *channel);
+            void removeChannel(Channel *channel) override;
 
         private:
             typedef std::vector<struct pollfd> PollFdList;
@@ -30,7 +30,7 @@ namespace muduo {
             PollFdList pollFdList_;
             ChannelMap channelMap_;
 
-            void fillActiveChannels(ChannelList *activeChannels, int numEvents) const;
+            void fillActiveChannels(ChannelList *activeChannels, int numEvents);
         };
     }
 }

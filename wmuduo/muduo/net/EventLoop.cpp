@@ -19,7 +19,7 @@ namespace {
 }
 
 
-EventLoop *EventLoop::getEventLoopOfCurrentThread() const {
+EventLoop *EventLoop::getEventLoopOfCurrentThread() {
     return t_loopInThisThread;
 }
 

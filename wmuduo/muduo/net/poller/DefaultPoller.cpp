@@ -4,7 +4,7 @@
 
 #include <muduo/net/Poller.h>
 #include <muduo/net/poller/PollPoller.h>
-//#include <muduo/net/poller/EPollPoller.h>
+#include <muduo/net/poller/EPollPoller.h>
 
 using namespace muduo::net;
 
@@ -13,6 +13,6 @@ Poller* Poller::newDefaultPoller(muduo::net::EventLoop *loop) {
         return new PollPoller(loop);
     }
     else {
-
+        return new EPollPoller(loop);
     }
 }

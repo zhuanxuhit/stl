@@ -41,7 +41,7 @@ namespace muduo {
 
             bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
 
-            static EventLoop *getEventLoopOfCurrentThread() const;
+            static EventLoop *getEventLoopOfCurrentThread();
 
         private:
             void printActiveChannels() const;
