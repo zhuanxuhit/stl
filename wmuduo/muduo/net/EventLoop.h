@@ -50,11 +50,13 @@ namespace muduo {
 
             bool looping_;
             bool quit_;
+            bool eventHandling_;
             const pid_t threadId_;
 
             typedef std::vector<Channel *> ChannelList;
             ChannelList activeChannels_;
             Timestamp pollerReturnTime_;
+            Channel* currentActiveChannel_;
             // auto delete
             std::unique_ptr<Poller> poller_;
         };
