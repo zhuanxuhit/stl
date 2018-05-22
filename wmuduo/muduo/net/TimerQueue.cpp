@@ -153,7 +153,8 @@ void TimerQueue::reset(const std::vector<TimerQueue::Entry> &expired, Timestamp 
 
 TimerId TimerQueue::addTimer(const TimerCallback &cb, Timestamp when, double interval) {
     auto timer = new Timer(cb,when,interval);
-    addTimerInLoop(timer);
+//    addTimerInLoop(timer);
+    loop_->runInLoop(std::bind(&TimerQueue::addTimerInLoop, this, timer));
     return {timer,timer->sequence()};
 }
 

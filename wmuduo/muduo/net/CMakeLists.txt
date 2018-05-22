@@ -4,6 +4,7 @@ set(net_SRCS
         Channel.cpp
         TimerQueue.cpp
         Timer.cpp
+        EventLoopThread.cpp
         poller/PollPoller.cpp
         poller/DefaultPoller.cpp
         poller/EPollPoller.cpp

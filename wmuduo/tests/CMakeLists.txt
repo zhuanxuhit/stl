@@ -11,5 +11,11 @@ target_link_libraries(reactor_test03 muduo_net)
 add_executable(reactor_test04 Reactor_test04.cpp)
 target_link_libraries(reactor_test04 muduo_net)
 
+add_executable(reactor_test05 Reactor_test05.cpp)
+target_link_libraries(reactor_test05 muduo_net)
+
+add_executable(reactor_test06 Reactor_test06.cpp)
+target_link_libraries(reactor_test06 muduo_net)
+
 add_executable(rvo_test rvo_test.cpp)
 add_executable(set_test set_test.cpp)
