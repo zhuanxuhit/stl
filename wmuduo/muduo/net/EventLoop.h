@@ -5,17 +5,23 @@
 #pragma once
 
 #include <boost/core/noncopyable.hpp>
-#include <vector>
-#include <bits/unique_ptr.h>
 #include <muduo/base/Timestamp.h>
 #include <muduo/base/CurrentThread.h>
+#include <muduo/net/Callbacks.h>
+#include <muduo/net/TimerId.h>
+
+//#include <muduo/net/Poller.h> // 交叉引用问题
+#include <memory>
+#include <vector>
 
 namespace muduo {
     namespace net {
         // 前向声明
         class Poller;
-
         class Channel;
+        class TimerQueue;
+//        class TimerId;
+
 
         class EventLoop : boost::noncopyable {
         public:
@@ -43,6 +49,13 @@ namespace muduo {
 
             static EventLoop *getEventLoopOfCurrentThread();
 
+
+            // 定时器相关
+            TimerId runAt(const Timestamp& time, const TimerCallback& cb);
+            TimerId runAfter(double delay, const TimerCallback& cb);
+            TimerId runEvery(double interval, const TimerCallback& cb);
+            void cancel(TimerId timerId);
+
         private:
             void printActiveChannels() const;
 
@@ -59,6 +72,7 @@ namespace muduo {
             Channel* currentActiveChannel_;
             // auto delete
             std::unique_ptr<Poller> poller_;
+            std::unique_ptr<TimerQueue> timerQueue_;
         };
     }
 }

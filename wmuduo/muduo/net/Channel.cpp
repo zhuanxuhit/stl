@@ -27,6 +27,11 @@ Channel::Channel(EventLoop *loop, int fd):
 
 }
 
+Channel::~Channel() {
+
+}
+
+
 string Channel::reventsToString() const {
     std::ostringstream oss;
     oss << fd_ << ": ";
@@ -83,5 +88,7 @@ void Channel::remove() {
     assert(isNoneEvent());
     this->ownerLoop()->removeChannel(this);
 }
+
+
 
 

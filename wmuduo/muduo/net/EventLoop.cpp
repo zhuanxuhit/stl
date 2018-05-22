@@ -4,11 +4,13 @@
 
 
 #include <muduo/net/EventLoop.h>
+#include <muduo/net/TimerQueue.h>
 #include <muduo/base/Logging.h>
 #include <muduo/net/Poller.h>
 #include <muduo/net/Channel.h>
-#include <algorithm>
 
+#include <algorithm>
+#include <memory>
 
 using namespace muduo;
 using namespace muduo::net;
@@ -29,7 +31,8 @@ EventLoop::EventLoop() :
         eventHandling_(false),
         currentActiveChannel_(nullptr),
         threadId_(CurrentThread::tid()),
-        poller_(Poller::newDefaultPoller(this)) {
+        timerQueue_(new TimerQueue(this)),
+        poller_( Poller::newDefaultPoller(this) ){
     LOG_TRACE << "EventLoop created " << this << " in thread " << threadId_;
     // 如果当前线程已经创建过 eventloop 了，则终止
     if (t_loopInThisThread != nullptr) {
@@ -112,6 +115,24 @@ void EventLoop::removeChannel(Channel *channel) {
     }
     // no lock needed
     poller_->removeChannel(channel);
+}
+
+TimerId EventLoop::runAt(const Timestamp &time, const TimerCallback &cb) {
+    return timerQueue_->addTimer(cb, time, 0);
+}
+
+TimerId EventLoop::runAfter(double delay, const TimerCallback &cb) {
+    Timestamp time(addTime(Timestamp::now(), delay));
+    return runAt(time, cb);
+}
+
+TimerId EventLoop::runEvery(double interval, const TimerCallback &cb) {
+    Timestamp time(addTime(Timestamp::now(), interval));
+    return timerQueue_->addTimer(cb, time, interval);
+}
+
+void EventLoop::cancel(TimerId timerId) {
+    timerQueue_->cancel(timerId);
 }
 
 

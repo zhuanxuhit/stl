@@ -8,7 +8,7 @@
 
 using namespace muduo::net;
 
-Poller* Poller::newDefaultPoller(muduo::net::EventLoop *loop) {
+Poller* Poller::newDefaultPoller(EventLoop *loop) {
     if (::getenv("MUDUO_USE_POLL")){
         return new PollPoller(loop);
     }
