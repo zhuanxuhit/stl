@@ -10,6 +10,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <muduo/base/Types.h>
 #include <muduo/base/Timestamp.h>
+#include <memory>
 
 namespace muduo {
     namespace net {
@@ -60,6 +61,9 @@ namespace muduo {
             void disableAll() { events_ = kNoneEvent; update(); }
             bool isWriting() const { return events_ & kWriteEvent; }
 
+            /// Tie this channel to the owner object managed by shared_ptr,
+            /// prevent the owner object being destroyed in handleEvent.
+            void tie(const std::shared_ptr<void>&);
         private:
             void update();
 
@@ -76,8 +80,9 @@ namespace muduo {
             int events_;
             int revents_;
             int index_; // 标明 Channel 在 poller vector 中的位置
-
-
+            bool tied_;
+            // 弱引用其他指针
+            std::weak_ptr<void> tie_;
 
             static const int kNoneEvent;
             static const int kReadEvent;

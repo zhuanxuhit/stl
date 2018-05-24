@@ -6,6 +6,8 @@ set(net_SRCS
         InetAddress.cpp
         Socket.cpp
         Acceptor.cpp
+        TcpServer.cpp
+        TcpConnection.cpp
         SocketsOps.cpp
         Timer.cpp
         EventLoopThread.cpp
@@ -26,6 +28,7 @@ set(HEADERS
         EventLoopThread.h
         InetAddress.h
         TimerId.h
+        TcpConnection
   )
 install(FILES ${HEADERS} DESTINATION include/muduo/net)
 

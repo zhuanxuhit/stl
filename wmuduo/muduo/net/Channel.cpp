@@ -23,7 +23,8 @@ Channel::Channel(EventLoop *loop, int fd):
         fd_(fd),
         events_(kNoneEvent),
         revents_(kNoneEvent),
-        index_(-1){
+        index_(-1),
+        tied_(false){
 
 }
 
@@ -87,6 +88,11 @@ void Channel::update() {
 void Channel::remove() {
     assert(isNoneEvent());
     this->ownerLoop()->removeChannel(this);
+}
+
+void Channel::tie(const std::shared_ptr<void> &obj) {
+    tie_ = obj;
+    tied_ = true;
 }
 
 
