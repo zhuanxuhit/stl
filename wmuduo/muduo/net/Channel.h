@@ -10,6 +10,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <muduo/base/Types.h>
 #include <muduo/base/Timestamp.h>
+#include <memory>
 
 namespace muduo {
     namespace net {
@@ -36,11 +37,12 @@ namespace muduo {
 
             void set_index(int idx) { index_ = idx; }
 
-            bool isNoneEvent() const { return events_ == 0; }
+            bool isNoneEvent() const { return events_ == kNoneEvent; }
 
             string reventsToString()const;
 
             EventLoop* ownerLoop() const;
+            void remove();
 
             void handleEvent(Timestamp receiveTime);
             void setReadCallback(const ReadEventCallback& cb)
@@ -52,7 +54,20 @@ namespace muduo {
             void setErrorCallback(const EventCallback& cb)
             { errorCallback_ = cb; }
 
+            void enableReading() { events_ |= kReadEvent; update(); }
+            // void disableReading() { events_ &= ~kReadEvent; update(); }
+            void enableWriting() { events_ |= kWriteEvent; update(); }
+            void disableWriting() { events_ &= ~kWriteEvent; update(); }
+            void disableAll() { events_ = kNoneEvent; update(); }
+            bool isWriting() const { return events_ & kWriteEvent; }
+
+            /// Tie this channel to the owner object managed by shared_ptr,
+            /// prevent the owner object being destroyed in handleEvent.
+            void tie(const std::shared_ptr<void>&);
         private:
+            void update();
+
+
             ReadEventCallback readCallback_;
             EventCallback writeCallback_;
             EventCallback closeCallback_;
@@ -64,7 +79,14 @@ namespace muduo {
             const int fd_;
             int events_;
             int revents_;
-            int index_; // 标明 Channel 在
+            int index_; // 标明 Channel 在 poller vector 中的位置
+            bool tied_;
+            // 弱引用其他指针
+            std::weak_ptr<void> tie_;
+
+            static const int kNoneEvent;
+            static const int kReadEvent;
+            static const int kWriteEvent;
         };
     }
 }

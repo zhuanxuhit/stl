@@ -4,17 +4,34 @@
 
 #include <sstream>
 
-#include "Channel.h"
+#include <muduo/net/Channel.h>
+#include <muduo/net/EventLoop.h>
 
 #include <poll.h>
+#include <cassert>
 
 
 using namespace muduo;
 using namespace muduo::net;
 
-Channel::Channel(EventLoop *loop, int fd):loop_(loop),fd_(fd) {
+const int Channel::kNoneEvent = 0;
+const int Channel::kReadEvent = POLLIN | POLLPRI;
+const int Channel::kWriteEvent = POLLOUT;
+
+Channel::Channel(EventLoop *loop, int fd):
+        loop_(loop),
+        fd_(fd),
+        events_(kNoneEvent),
+        revents_(kNoneEvent),
+        index_(-1),
+        tied_(false){
 
 }
+
+Channel::~Channel() {
+
+}
+
 
 string Channel::reventsToString() const {
     std::ostringstream oss;
@@ -63,5 +80,21 @@ void Channel::handleEvent(Timestamp receiveTime) {
 EventLoop *Channel::ownerLoop() const {
     return loop_;
 }
+
+void Channel::update() {
+    this->ownerLoop()->updateChannel(this);
+}
+
+void Channel::remove() {
+    assert(isNoneEvent());
+    this->ownerLoop()->removeChannel(this);
+}
+
+void Channel::tie(const std::shared_ptr<void> &obj) {
+    tie_ = obj;
+    tied_ = true;
+}
+
+
 
 

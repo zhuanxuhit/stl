@@ -7,12 +7,13 @@
 
 #include <muduo/net/Poller.h>
 #include <map>
+#include <sys/epoll.h>
 
 namespace muduo {
     namespace net {
         class EPollPoller : public Poller{
         public:
-            EPollPoller(EventLoop *loop);
+            explicit EPollPoller(EventLoop *loop);
             ~EPollPoller() override ;
 
             Timestamp poll(int timeouMs, ChannelList *activeChannels) override;
@@ -24,7 +25,7 @@ namespace muduo {
         private:
             static const int kInitEventListSize = 16;
             void fillActiveChannels(int numEvents,
-                                    ChannelList* activeChannels) const;
+                                    ChannelList* activeChannels);
             void update(int operation, Channel* channel);
 
             typedef std::vector<struct epoll_event> EventList;

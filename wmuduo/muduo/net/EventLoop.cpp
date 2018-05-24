@@ -4,11 +4,14 @@
 
 
 #include <muduo/net/EventLoop.h>
+#include <muduo/net/TimerQueue.h>
 #include <muduo/base/Logging.h>
 #include <muduo/net/Poller.h>
 #include <muduo/net/Channel.h>
-#include <algorithm>
 
+#include <algorithm>
+#include <memory>
+#include <sys/eventfd.h>
 
 using namespace muduo;
 using namespace muduo::net;
@@ -16,10 +19,21 @@ using namespace muduo::net;
 namespace {
     __thread EventLoop *t_loopInThisThread = nullptr;
     const int kPollTimeMs = 10 * 1000;
+
+    int createEventfd()
+    {
+        int evtfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (evtfd < 0)
+        {
+            LOG_SYSERR << "Failed in eventfd";
+            abort();
+        }
+        return evtfd;
+    }
 }
 
 
-EventLoop *EventLoop::getEventLoopOfCurrentThread() const {
+EventLoop *EventLoop::getEventLoopOfCurrentThread() {
     return t_loopInThisThread;
 }
 
@@ -29,7 +43,11 @@ EventLoop::EventLoop() :
         eventHandling_(false),
         currentActiveChannel_(nullptr),
         threadId_(CurrentThread::tid()),
-        poller_(Poller::newDefaultPoller(this)) {
+        wakeupFd_(createEventfd()),
+        wakeupChannel_(new Channel(this,wakeupFd_)),
+        callingPendingFuncors_(false),
+        timerQueue_(new TimerQueue(this)),
+        poller_( Poller::newDefaultPoller(this) ){
     LOG_TRACE << "EventLoop created " << this << " in thread " << threadId_;
     // 如果当前线程已经创建过 eventloop 了，则终止
     if (t_loopInThisThread != nullptr) {
@@ -38,10 +56,13 @@ EventLoop::EventLoop() :
     } else {
         t_loopInThisThread = this;
     }
+    wakeupChannel_->setReadCallback(std::bind(&EventLoop::handleRead, this, std::placeholders::_1));
+    wakeupChannel_->enableReading();
 }
 
 EventLoop::~EventLoop() {
     t_loopInThisThread = nullptr;
+    ::close(wakeupFd_);
 }
 
 void EventLoop::abortNotInLoopThread() {
@@ -76,6 +97,7 @@ void EventLoop::loop() {
         }
         currentActiveChannel_ = nullptr;
         eventHandling_ = false;
+        doPendingFunctors();
     }
 
     LOG_TRACE << "EventLoop " << this << " stop looping";
@@ -90,6 +112,9 @@ void EventLoop::printActiveChannels() const {
 
 void EventLoop::quit() {
     quit_ = true;
+    if (!isInLoopThread()){
+        wakeup();
+    }
 }
 
 
@@ -112,6 +137,82 @@ void EventLoop::removeChannel(Channel *channel) {
     }
     // no lock needed
     poller_->removeChannel(channel);
+}
+
+TimerId EventLoop::runAt(const Timestamp &time, const TimerCallback &cb) {
+    return timerQueue_->addTimer(cb, time, 0);
+}
+
+TimerId EventLoop::runAfter(double delay, const TimerCallback &cb) {
+    Timestamp time(addTime(Timestamp::now(), delay));
+    return runAt(time, cb);
+}
+
+TimerId EventLoop::runEvery(double interval, const TimerCallback &cb) {
+    Timestamp time(addTime(Timestamp::now(), interval));
+    return timerQueue_->addTimer(cb, time, interval);
+}
+
+void EventLoop::cancel(TimerId timerId) {
+    timerQueue_->cancel(timerId);
+}
+
+void EventLoop::runInLoop(const EventLoop::Functor &cb) {
+    if (isInLoopThread()) {
+        cb();
+    }
+    else {
+        queueInLoop(cb);
+    }
+}
+
+void EventLoop::queueInLoop(const EventLoop::Functor &cb) {
+    {
+        MutexLockGuard lock(mutex_);
+        pendingFunctors_.push_back(cb);
+    }
+    // 为何只有在IO线程调用的时候才不需要唤醒呢？
+    // 因为之后马上就会调用 doPendingFunctors 调用
+    // 如果有多个回调函数在非io线程中调用  queueInLoop 那不是会多次唤醒吗？
+    // 这个没有关系？
+    if (!isInLoopThread() || callingPendingFuncors_){
+        wakeup();
+    }
+}
+
+void EventLoop::wakeup() {
+    uint64_t one = 1;
+    //ssize_t n = sockets::write(wakeupFd_, &one, sizeof one);
+    ssize_t n = ::write(wakeupFd_, &one, sizeof one);
+    if (n != sizeof one)
+    {
+        LOG_ERROR << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
+    }
+}
+
+void EventLoop::handleRead(Timestamp receiveTime) {
+    uint64_t one = 1;
+    //ssize_t n = sockets::read(wakeupFd_, &one, sizeof one);
+    ssize_t n = ::read(wakeupFd_, &one, sizeof one);
+    if (n != sizeof one)
+    {
+        LOG_ERROR << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
+    }
+}
+
+void EventLoop::doPendingFunctors() {
+    std::vector<Functor> functors;
+    callingPendingFuncors_ = true;
+
+    {
+        MutexLockGuard lock(mutex_);
+        functors.swap(pendingFunctors_);
+    }
+
+    for(auto cb : functors){
+        cb();
+    }
+    callingPendingFuncors_ = false;
 }
 
 

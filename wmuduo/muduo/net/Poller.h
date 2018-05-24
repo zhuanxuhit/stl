@@ -2,8 +2,7 @@
 // Created by Wang,Chao(EBDPRD02) on 2018/5/16.
 //
 
-#ifndef PROJECT_POLLER_H
-#define PROJECT_POLLER_H
+#pragma once
 
 #include <vector>
 #include <muduo/base/Timestamp.h>
@@ -17,7 +16,7 @@ namespace muduo {
         public:
             typedef std::vector<Channel *> ChannelList;
 
-            Poller(EventLoop *loop);
+            Poller(EventLoop* loop);
 
 
             virtual ~Poller();
@@ -41,6 +40,3 @@ namespace muduo {
         };
     }
 }
-
-
-#endif //PROJECT_POLLER_H

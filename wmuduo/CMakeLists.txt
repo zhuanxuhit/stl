@@ -1,7 +1,7 @@
 
 project(muduo CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+#set(CMAKE_CXX_STANDARD 11)
 
 
 set(CXX_FLAGS
@@ -50,7 +50,6 @@ message(STATUS "CXX_FLAGS = " ${CMAKE_CXX_FLAGS} " " ${CMAKE_CXX_FLAGS_${BUILD_T
 #add_subdirectory(net)
 add_subdirectory(muduo/base)
 add_subdirectory(muduo/net)
-
 #if(NOT CMAKE_BUILD_NO_EXAMPLES)
 #  add_subdirectory(examples)
 #else()
