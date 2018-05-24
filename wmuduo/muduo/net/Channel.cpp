@@ -87,7 +87,7 @@ void Channel::update() {
 
 void Channel::remove() {
     assert(isNoneEvent());
-    this->ownerLoop()->removeChannel(this);
+    ownerLoop()->removeChannel(this);
 }
 
 void Channel::tie(const std::shared_ptr<void> &obj) {

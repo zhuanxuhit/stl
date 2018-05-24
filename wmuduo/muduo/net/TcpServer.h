@@ -5,19 +5,18 @@
 #ifndef PROJECT_TCPSERVER_H
 #define PROJECT_TCPSERVER_H
 
-
+#include <map>
 #include <memory>
 #include <boost/noncopyable.hpp>
+
 #include <muduo/base/Types.h>
 #include <muduo/net/Callbacks.h>
 #include <muduo/net/InetAddress.h>
 #include <muduo/net/TcpConnection.h>
-#include <map>
 
 namespace muduo {
     namespace net {
         class EventLoop;
-
         class Acceptor;
 
         class TcpServer : boost::noncopyable {
@@ -39,9 +38,12 @@ namespace muduo {
         private:
             void newConnection(int sockfd, const InetAddress &peerAddr);
 
+            void removeConnection(const TcpConnectionPtr&);
+
             typedef std::map<string, TcpConnectionPtr> ConnectionMap;
 
             EventLoop *loop_;
+            // 处理tcp连接建立，内部自带socket
             std::unique_ptr<Acceptor> acceptor_;
             const string hostport_;
             const string name_;

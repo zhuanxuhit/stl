@@ -23,13 +23,13 @@ namespace muduo{
             void setNewConnectionCallback(const NewConnectionCallback& cb)
             { newConnectionCallback_ = cb; }
 
-            bool listenning() const { return listenning_; }
+            bool listenning() const { return listening_; }
             void listen();
 
         private:
             void handleRead();
             NewConnectionCallback newConnectionCallback_;
-            bool listenning_;
+            bool listening_;
             EventLoop* loop_;
             Socket acceptSocket_;
             Channel acceptChannel_;

@@ -17,7 +17,7 @@ Acceptor::Acceptor(EventLoop *loop, const InetAddress &listenAddr)
         : loop_(loop),
           acceptSocket_(sockets::createNonblockingOrDie()),
           acceptChannel_(loop, acceptSocket_.fd()),
-          listenning_(false),
+          listening_(false),
           idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC)) {
     assert(idleFd_ >= 0);
     acceptSocket_.setReuseAddr(true);
@@ -35,7 +35,7 @@ Acceptor::~Acceptor()
 
 void Acceptor::listen() {
     loop_->assertInLoopThread();
-    listenning_ = true;
+    listening_ = true;
     acceptSocket_.listen();
     acceptChannel_.enableReading();
 }
