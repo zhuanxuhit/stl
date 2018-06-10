@@ -4,6 +4,7 @@ set(net_SRCS
         Channel.cpp
         TimerQueue.cpp
         InetAddress.cpp
+        EventLoopThreadPool.cpp
         Socket.cpp
         Acceptor.cpp
         TcpServer.cpp
@@ -26,6 +27,7 @@ set(HEADERS
         Endian.h
         EventLoop.h
         EventLoopThread.h
+        EventLoopThreadPool.h
         InetAddress.h
         TimerId.h
         TcpConnection

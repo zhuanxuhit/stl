@@ -5,6 +5,7 @@
 #include <muduo/net/Acceptor.h>
 #include <muduo/net/TcpConnection.h>
 #include <muduo/net/EventLoop.h>
+#include <muduo/net/EventLoopThreadPool.h>
 #include <muduo/net/SocketsOps.h>
 #include <muduo/base/Logging.h>
 
@@ -17,6 +18,7 @@ TcpServer::TcpServer(EventLoop *loop, const InetAddress &listenAddr, const strin
           hostport_(listenAddr.toIpPort()),
           name_(nameArg),
           acceptor_(new Acceptor(loop, listenAddr)),
+          threadPool_(new EventLoopThreadPool(loop)),
           started_(false),
           nextConnId_(1) {
     using namespace std::placeholders;
@@ -40,6 +42,7 @@ TcpServer::~TcpServer() {
 void TcpServer::start() {
     if (!started_) {
         started_ = true;
+        threadPool_->start(threadInitCallback_);
     }
     if (!acceptor_->listenning()) {
         loop_->runInLoop(std::bind(&Acceptor::listen, acceptor_.get()));
@@ -49,6 +52,9 @@ void TcpServer::start() {
 // io 线程中调用
 void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
     loop_->assertInLoopThread();
+    // 按照轮叫的方式选择一个EventLoop
+    EventLoop* ioLoop = threadPool_->getNextLoop();
+
     char buf[32];
     snprintf(buf, sizeof(buf), ":%s#%d", hostport_.c_str(), nextConnId_++);
     string connName = name_ + buf;
@@ -58,7 +64,7 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
              << "] from " << peerAddr.toIpPort();
     InetAddress localAddr(sockets::getLocalAddr(sockfd));
 
-    TcpConnectionPtr conn(new TcpConnection(loop_,
+    TcpConnectionPtr conn(new TcpConnection(ioLoop,
                                             connName,
                                             sockfd,
                                             localAddr,
@@ -72,11 +78,21 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
     conn->setCloseCallback(
             std::bind(&TcpServer::removeConnection, this, std::placeholders::_1));
 
-    conn->connectEstablished();
+    // conn->connectEstablished();
+    loop_->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));
     LOG_TRACE << "[5] usecount=" << conn.use_count();
 }
 
 void TcpServer::removeConnection(const TcpConnectionPtr& conn) {
+    loop_->runInLoop(std::bind(&TcpServer::removeConnectionInLoop,this,conn));
+}
+
+void TcpServer::setThreadNum(int numThreads) {
+    assert(0 <= numThreads);
+    threadPool_->setThreadNum(numThreads);
+}
+
+void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn) {
     loop_->assertInLoopThread();
     LOG_INFO << "TcpServer::removeConnectionInLoop [" << name_
              << "] - connection " << conn->name();
