@@ -1,0 +1,4 @@
+#add_compile_options(-msse4.1)
+set(CMAKE_CXX_FLAGS "-mfma ${CMAKE_CXX_FLAGS}")
+add_executable(hq_sse sse.cpp)
+add_executable(hq_compute_pi compute_pi.cpp)
