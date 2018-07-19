@@ -8,6 +8,7 @@
 #include <random>
 #include <memory>
 #include <chrono>
+#include <cstring>
 
 using namespace std;
 
@@ -16,7 +17,7 @@ using namespace std;
 #define _MM_ALIGN32 __attribute__((aligned(32)))
 
 
-inline double getSum(__m256 *ymm) {
+inline double getSum256(__m256 *ymm) {
     _MM_ALIGN32 float tmp[8];
     _mm256_store_ps(tmp, *ymm);
     double result = 0;
@@ -41,6 +42,50 @@ double cosine_similarity_native(const float *a, const float *b, size_t n) {
     double result = 0;
     double suma = 0;
     double sumb = 0;
+    for (int i = 0; i < n; ++i) {
+        result += a[i] * b[i];
+        suma += a[i] * a[i];
+        sumb += b[i] * b[i];
+    }
+    return result / sqrt(suma) / sqrt(sumb);
+}
+
+double sigmoid_normal(const float *a, const float *b, size_t n) {
+    // 计算cosin相似度
+    double result = 0;
+    for (int i = 0; i < n; ++i) {
+        result += a[i] * b[i];
+    }
+    return 1 / (1+exp(-result));
+}
+
+double test_move(float *a, float *b, size_t n) {
+    // 计算cosin相似度
+    for (int i = 0; i < n; ++i) {
+        a[i] = b[i];
+    }
+    return a[0];
+}
+double test_memcopy(float *a, float *b, size_t n) {
+    // 计算cosin相似度
+    memcpy(a,b, sizeof(float)*n);
+    return a[0];
+}
+
+double sigmoid_fast(const float *a, const float *b, size_t n) {
+    // 计算cosin相似度
+    double result = 0;
+    for (int i = 0; i < n; ++i) {
+        result += a[i] * b[i];
+    }
+    return result /  ( 1 + fabs(result));
+}
+
+double cosine_similarity_int_native(const int *a, const int *b, size_t n) {
+    // 计算cosin相似度
+    long result = 0;
+    long suma = 0;
+    long sumb = 0;
     for (int i = 0; i < n; ++i) {
         result += a[i] * b[i];
         suma += a[i] * a[i];
@@ -136,9 +181,48 @@ double cosine_similarity_avx_native(const float *a, const float *b, size_t n) {
         suma = _mm256_add_ps(suma, AA);
         sumb = _mm256_add_ps(sumb, BB);
     }
-    double result = getSum(&dots);
-    double sumaa = getSum(&suma);
-    double sumbb = getSum(&sumb);
+    double result = getSum256(&dots);
+    double sumaa = getSum256(&suma);
+    double sumbb = getSum256(&sumb);
+//    float tmp[8];
+//    _mm256_storeu_ps(tmp, dots);
+//    double result = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] ;
+//    float tmp1[8];
+//    _mm256_storeu_ps(tmp1, suma);
+//    double sumaa = tmp1[0] + tmp1[1] + tmp1[2] + tmp1[3] + tmp1[4] + tmp1[5] + tmp1[6] + tmp1[7] ;
+//    float tmp2[8];
+//    _mm256_storeu_ps(tmp2, sumb);
+//    double sumbb = tmp2[0] + tmp2[1] + tmp2[2] + tmp2[3] + tmp2[4] + tmp2[5] + tmp2[6] + tmp2[7] ;
+
+    for (size_t i = chunks * 8; i < n; i++) {
+        result += a[i] * b[i];
+        sumaa += a[i] * a[i];
+        sumbb += b[i] * b[i];
+    }
+    return result / sqrt(sumaa) / sqrt(sumbb);
+}
+
+
+
+double cosine_similarity_avx_native_align(const float *a, const float *b, size_t n) {
+    const size_t chunks = n / 8;
+    // 计算cosin相似度
+    __m256 dots = _mm256_setzero_ps();
+    __m256 suma = _mm256_setzero_ps();
+    __m256 sumb = _mm256_setzero_ps();
+    for (int i = 0; i < n; i += 8) {
+        __m256 A = _mm256_load_ps(&a[i]);
+        __m256 B = _mm256_load_ps(&b[i]);
+        __m256 AB = _mm256_mul_ps(A, B);
+        __m256 AA = _mm256_mul_ps(A, A);
+        __m256 BB = _mm256_mul_ps(B, B);
+        dots = _mm256_add_ps(dots, AB);
+        suma = _mm256_add_ps(suma, AA);
+        sumb = _mm256_add_ps(sumb, BB);
+    }
+    double result = getSum256(&dots);
+    double sumaa = getSum256(&suma);
+    double sumbb = getSum256(&sumb);
 //    float tmp[8];
 //    _mm256_storeu_ps(tmp, dots);
 //    double result = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] ;
@@ -178,9 +262,9 @@ double cosine_similarity_fma_native(const float *a, const float *b, size_t n) {
 //        suma = _mm256_add_ps(suma, AA);
 //        sumb = _mm256_add_ps(sumb, BB);
     }
-    double result = getSum(&dots);
-    double sumaa = getSum(&suma);
-    double sumbb = getSum(&sumb);
+    double result = getSum256(&dots);
+    double sumaa = getSum256(&suma);
+    double sumbb = getSum256(&sumb);
 //    float tmp[8];
 //    _mm256_storeu_ps(tmp, dots);
 //    double result = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] ;
@@ -223,9 +307,9 @@ double cosine_similarity_fma_unroll1(const float *a, const float *b, size_t n) {
 //        suma = _mm256_add_ps(suma, AA);
 //        sumb = _mm256_add_ps(sumb, BB);
     }
-    double result = getSum(&dots[0])+getSum(&dots[1]);
-    double sumaa = getSum(&suma[0])+getSum(&suma[1]);
-    double sumbb = getSum(&sumb[0])+getSum(&sumb[1]);
+    double result = getSum256(&dots[0])+ getSum256(&dots[1]);
+    double sumaa = getSum256(&suma[0])+ getSum256(&suma[1]);
+    double sumbb = getSum256(&sumb[0])+ getSum256(&sumb[1]);
 //    float tmp[8];
 //    _mm256_storeu_ps(tmp, dots);
 //    double result = tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7] ;
@@ -267,9 +351,9 @@ inline double dotWithAVXUnroll(float const *a, float const *b,const int len){
         suma[0] = _mm256_add_ps(suma[0],suma[j]);
         sumb[0] = _mm256_add_ps(sumb[0],sumb[j]);
     }
-    double result = getSum(&(dots[0]));
-    double sumaa = getSum(&suma[0]);
-    double sumbb = getSum(&sumb[0]);
+    double result = getSum256(&(dots[0]));
+    double sumaa = getSum256(&suma[0]);
+    double sumbb = getSum256(&sumb[0]);
 
     for (size_t i = (8*BX)*step; i < len; i++) {
         result += a[i] * b[i];
@@ -290,9 +374,10 @@ using std::chrono::microseconds;
 std::random_device rd;
 static std::mt19937 gen(rd());
 static std::uniform_real_distribution<float> dis(1.0, 2.0);
+static std::uniform_int_distribution<int> dis_int(-1000, 1000);
 
 class TestCase {
-    const size_t SIZE = 2000 * 16;
+    const size_t SIZE = 5000 * 16;
     float *input1;
     float *input2;
 public:
@@ -349,7 +434,29 @@ int main() {
     testCase.run("SSE (naive)", cosine_similarity_sse_native);
     testCase.run("SSE (DPPS)", cosine_similarity_sse_dpps); // 这种方法不怎么快。
     testCase.run("AVX (naive)", cosine_similarity_avx_native);
+    testCase.run("AVX (naive align)", cosine_similarity_avx_native_align);
     testCase.run("FMA (naive)", cosine_similarity_fma_native);
     testCase.run("FMA (unroll1)", cosine_similarity_fma_unroll1);
     testCase.run("FMA (unroll)", cosine_similarity_fma_unroll);
+
+//    {
+//        cout << "测试int........" << endl;
+//        TestCaseInt testCase;
+//        testCase.run("native", cosine_similarity_int_native);
+//    }
+
+    {
+        cout << "测试sigmoid........" << endl;
+        TestCase testCase;
+        testCase.run("sigmoid normal", sigmoid_normal);
+        testCase.run("sigmoid fast", sigmoid_fast);
+    }
+
+    {
+        cout << "测试内存拷贝........" << endl;
+        TestCase testCase;
+        testCase.run("test_move", test_move);
+        testCase.run("test_memcopy", test_memcopy);
+    }
+
 }

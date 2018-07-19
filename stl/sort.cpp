@@ -117,6 +117,19 @@ int main() {
         const Clock::rep dt = duration_cast<microseconds>(t2 - t1).count();
         printf("unordered_map(ptr) %lu us\n", dt);
     }
+    {
+        const auto t1 = Clock::now();
+        std::unordered_map<std::string, std::vector<StgNodeWrapper *>> term_cont_list;
+        for (int i = 0; i < result_num; ++i) {
+            if (term_cont_list.find(result[i].name) == term_cont_list.end()) {
+                term_cont_list.emplace(result[i].name, std::vector<StgNodeWrapper *>());
+            }
+            term_cont_list[result[i].name].emplace_back(&result[i]);
+        }
+        const auto t2 = Clock::now();
+        const Clock::rep dt = duration_cast<microseconds>(t2 - t1).count();
+        printf("unordered_map(ptr) %lu us\n", dt);
+    }
     std::unordered_map<std::string, std::vector<StgNodeWrapper *>> term_cont_list;
     for (int i = 0; i < result_num; ++i) {
         if (term_cont_list.find(result[i].name) == term_cont_list.end()) {

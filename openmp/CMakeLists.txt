@@ -1,0 +1,1 @@
+add_executable(openmp_sum sum.cpp)
